@@ -1,0 +1,5 @@
+ruby_version: 3.1
+ignore:
+  - 'test/dummy/db/**/*': # Templated migrations and generated schema.rb
+    - Layout/TrailingWhitespace
+    - Layout/ArgumentAlignment
