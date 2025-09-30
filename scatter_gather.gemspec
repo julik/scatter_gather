@@ -9,9 +9,9 @@ Gem::Specification.new do |spec|
   spec.email = ["me@julik.nl"]
   spec.license = "MIT"
 
-  spec.summary = "Effortless step workflows that embed nicely inside Rails"
-  spec.description = "Step workflows for Rails/ActiveRecord"
-  spec.homepage = "https://scattergather.dev"
+  spec.summary = "Scatter-gather for ActiveJob"
+  spec.description = "Scatter-gather for ActiveJob allowing batching"
+  spec.homepage = "https://github.com/julik/scatter_gather"
   spec.required_ruby_version = ">= 3.1.0"
 
   spec.metadata["allowed_push_host"] = "https://rubygems.org"
