@@ -32,7 +32,7 @@ module ScatterGather
   max_attempts: 10,
   poll_interval: 2.seconds
 }.freeze, T.untyped)
-  VERSION = T.let("0.1.19", T.untyped)
+  VERSION = T.let("0.1.0", T.untyped)
 
   # sord omit - no YARD return type given, using untyped
   # Updates the completions table with the status of this job
