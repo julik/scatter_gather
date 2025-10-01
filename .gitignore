@@ -3,13 +3,13 @@
 /log/*.log
 /pkg/
 /tmp/
-/test/dummy/db/schema.rb
 /test/dummy/db/*.sqlite3
 /test/dummy/db/*.sqlite3-*
 /test/dummy/db/migrate/*scatter_gather*
 /test/dummy/log/*.log
 /test/dummy/storage/
 /test/dummy/tmp/
+/tmp/scatter_gather_smoke_test*
 Gemfile.lock
 *.sqlite3
 .yardoc

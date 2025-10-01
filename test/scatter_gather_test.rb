@@ -8,18 +8,6 @@ class ScatterGatherTest < ActiveSupport::TestCase
     tempdir_name = "scatter-gather-tests-#{Random.uuid}"
     @tempdir = Rails.root.join("tmp", tempdir_name)
     FileUtils.mkdir_p(@tempdir)
-
-    # Ensure the scatter_gather_completions table exists for the main tests
-    unless ActiveRecord::Base.connection.table_exists?(:scatter_gather_completions)
-      ActiveRecord::Base.connection.create_table :scatter_gather_completions do |t|
-        t.string :active_job_id, null: false
-        t.string :active_job_class_name
-        t.string :status, default: "unknown"
-        t.timestamps
-      end
-      ActiveRecord::Base.connection.add_index :scatter_gather_completions, [:active_job_id], unique: true
-      ActiveRecord::Base.connection.add_index :scatter_gather_completions, [:created_at]
-    end
   end
 
   teardown do
