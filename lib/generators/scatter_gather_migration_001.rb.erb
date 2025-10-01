@@ -1,6 +1,9 @@
 class AddScatterGatherCompletions < ActiveRecord::Migration[<%= migration_version %>]
   def up
-    create_table :scatter_gather_completions do |t|
+    # Detect dominant ID type by scanning existing tables
+    id_type = detect_dominant_id_type
+    
+    create_table :scatter_gather_completions, id: id_type do |t|
       t.string :active_job_id, null: false
       t.string :active_job_class_name
       t.string :status, default: "unknown"
@@ -8,6 +11,43 @@ class AddScatterGatherCompletions < ActiveRecord::Migration[<%= migration_versio
     end
     add_index :scatter_gather_completions, [:active_job_id], unique: true # For lookups
     add_index :scatter_gather_completions, [:created_at] # For cleanup
+  end
+
+  private
+
+  # Scans existing tables to detect whether UUID or serial ID is dominant
+  # @return [Symbol] :uuid or :serial based on dominant ID type
+  def detect_dominant_id_type
+    return :serial if table_count == 0
+
+    uuid_count = 0
+    serial_count = 0
+
+    connection.tables.each do |table_name|
+      next if table_name == 'schema_migrations' || table_name == 'ar_internal_metadata'
+      
+      begin
+        columns = connection.columns(table_name)
+        id_column = columns.find { |col| col.name == 'id' }
+        next unless id_column
+
+        if id_column.type == :uuid
+          uuid_count += 1
+        elsif id_column.type == :integer || id_column.type == :bigint
+          serial_count += 1
+        end
+      rescue => e
+        # Skip tables that can't be inspected (e.g., views, system tables)
+        Rails.logger.debug "Could not inspect table #{table_name}: #{e.message}"
+      end
+    end
+
+    # Default to serial if no clear preference or equal counts
+    uuid_count > serial_count ? :uuid : :serial
+  end
+
+  def table_count
+    @table_count ||= connection.tables.count
   end
 
   def down
