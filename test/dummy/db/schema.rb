@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.2].define(version: 2025_01_01_000001) do
+ActiveRecord::Schema[7.2].define(version: 2025_10_01_074530) do
   create_table "scatter_gather_completions", force: :cascade do |t|
     t.string "active_job_id", null: false
     t.string "active_job_class_name"

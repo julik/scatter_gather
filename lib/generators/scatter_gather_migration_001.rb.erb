@@ -1,9 +1,12 @@
-class AddScatterGatherCompletions < ActiveRecord::Migration[<%= migration_version %>]
+class ScatterGatherMigration001 < ActiveRecord::Migration[<%= migration_version %>]
   def up
     # Detect dominant ID type by scanning existing tables
     id_type = detect_dominant_id_type
     
-    create_table :scatter_gather_completions, id: id_type do |t|
+    # Only specify id: :uuid if UUID is dominant, otherwise use Rails defaults
+    table_options = id_type == :uuid ? { id: :uuid } : {}
+    
+    create_table :scatter_gather_completions, **table_options do |t|
       t.string :active_job_id, null: false
       t.string :active_job_class_name
       t.string :status, default: "unknown"
