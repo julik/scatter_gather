@@ -4,7 +4,7 @@ class ScatterGatherMigration001 < ActiveRecord::Migration[<%= migration_version 
     id_type = detect_dominant_id_type
     
     # Only specify id: :uuid if UUID is dominant, otherwise use Rails defaults
-    table_options = id_type == :uuid ? { id: :uuid } : {}
+    table_options = (id_type == :uuid) ? {id: :uuid} : {}
     
     create_table :scatter_gather_completions, **table_options do |t|
       t.string :active_job_id, null: false
@@ -27,11 +27,11 @@ class ScatterGatherMigration001 < ActiveRecord::Migration[<%= migration_version 
     serial_count = 0
 
     connection.tables.each do |table_name|
-      next if table_name == 'schema_migrations' || table_name == 'ar_internal_metadata'
+      next if table_name == "schema_migrations" || table_name == "ar_internal_metadata"
       
       begin
         columns = connection.columns(table_name)
-        id_column = columns.find { |col| col.name == 'id' }
+        id_column = columns.find { |col| col.name == "id" }
         next unless id_column
 
         if id_column.type == :uuid
@@ -46,7 +46,7 @@ class ScatterGatherMigration001 < ActiveRecord::Migration[<%= migration_version 
     end
 
     # Default to serial if no clear preference or equal counts
-    uuid_count > serial_count ? :uuid : :serial
+    (uuid_count > serial_count) ? :uuid : :serial
   end
 
   def table_count
