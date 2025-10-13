@@ -32,7 +32,7 @@ module ScatterGather
   max_attempts: 10,
   poll_interval: 2.seconds
 }.freeze, T.untyped)
-  VERSION = T.let("0.1.1", T.untyped)
+  VERSION = T.let("0.1.2", T.untyped)
 
   # sord omit - no YARD return type given, using untyped
   # Updates the completions table with the status of this job
@@ -117,19 +117,21 @@ module ScatterGather
     def register_completion_for_gathering; end
   end
 
-  # The generator is used to install ScatterGather. It adds the migration that creates
-  # the scatter_gather_completions table.
-  # Run it with `bin/rails g scatter_gather:install` in your console.
-  class InstallGenerator < Rails::Generators::Base
-    include ActiveRecord::Generators::Migration
+  module Generators
+    # The generator is used to install ScatterGather. It adds the migration that creates
+    # the scatter_gather_completions table.
+    # Run it with `bin/rails g scatter_gather:install` in your console.
+    class InstallGenerator < Rails::Generators::Base
+      include ActiveRecord::Generators::Migration
 
-    # sord omit - no YARD return type given, using untyped
-    # Generates migration file that creates the scatter_gather_completions table.
-    sig { returns(T.untyped) }
-    def create_migration_file; end
+      # sord omit - no YARD return type given, using untyped
+      # Generates migration file that creates the scatter_gather_completions table.
+      sig { returns(T.untyped) }
+      def create_migration_file; end
 
-    # sord omit - no YARD return type given, using untyped
-    sig { returns(T.untyped) }
-    def migration_version; end
+      # sord omit - no YARD return type given, using untyped
+      sig { returns(T.untyped) }
+      def migration_version; end
+    end
   end
 end

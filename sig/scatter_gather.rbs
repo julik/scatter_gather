@@ -100,17 +100,19 @@ module ScatterGather
     def register_completion_for_gathering: () -> untyped
   end
 
-  # The generator is used to install ScatterGather. It adds the migration that creates
-  # the scatter_gather_completions table.
-  # Run it with `bin/rails g scatter_gather:install` in your console.
-  class InstallGenerator < Rails::Generators::Base
-    include ActiveRecord::Generators::Migration
+  module Generators
+    # The generator is used to install ScatterGather. It adds the migration that creates
+    # the scatter_gather_completions table.
+    # Run it with `bin/rails g scatter_gather:install` in your console.
+    class InstallGenerator < Rails::Generators::Base
+      include ActiveRecord::Generators::Migration
 
-    # sord omit - no YARD return type given, using untyped
-    # Generates migration file that creates the scatter_gather_completions table.
-    def create_migration_file: () -> untyped
+      # sord omit - no YARD return type given, using untyped
+      # Generates migration file that creates the scatter_gather_completions table.
+      def create_migration_file: () -> untyped
 
-    # sord omit - no YARD return type given, using untyped
-    def migration_version: () -> untyped
+      # sord omit - no YARD return type given, using untyped
+      def migration_version: () -> untyped
+    end
   end
 end

@@ -4,6 +4,7 @@ require "active_support"
 require "active_record"
 require "active_job"
 require "json"
+require_relative "scatter_gather/version"
 
 # Scatter-Gather Pattern for ActiveJob
 #

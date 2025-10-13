@@ -6,7 +6,7 @@ class SmokeTest < ActiveSupport::TestCase
     # Load the generator before changing directories
     require "scatter_gather"
     project_root = File.expand_path("../..", __FILE__)
-    require File.join(project_root, "lib", "generators", "install_generator")
+    require File.join(project_root, "lib", "generators", "scatter_gather", "install_generator")
 
     # Create a temporary directory for the test
     temp_dir = Dir.mktmpdir("scatter_gather_smoke_test")
@@ -41,7 +41,7 @@ class SmokeTest < ActiveSupport::TestCase
       puts "Step 4: Running scatter_gather:install generator..."
 
       # Create a temporary generator instance and run it
-      generator = ScatterGather::InstallGenerator.new
+      generator = ScatterGather::Generators::InstallGenerator.new
       generator.create_migration_file
 
       # Step 5: Verify migration file was created
