@@ -68,7 +68,7 @@ module ScatterGather
           updated_at: t
         }
       end
-      ScatterGather::Completion.insert_all(attrs)
+      ScatterGather::Completion.insert_all(attrs, returning: false)
       ScatterGather::Completion.where("created_at < ?", 1.week.ago).delete_all
 
       # Return a proxy object that behaves like an ActiveJob proxy
