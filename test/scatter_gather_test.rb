@@ -262,10 +262,10 @@ class ScatterGatherTest < ActiveSupport::TestCase
 
       | ✓ | Job ID | Class            | Status    |
       |---|--------|------------------|-----------|
-      |   | job-3  | (unknown)        | unknown   |
-      |   | job-2  | AnotherJob       | pending   |
-      |   | job-4  | LongClassNameJob | pending   |
       | ✓ | job-1  | TestJob          | completed |
+      |   | job-2  | AnotherJob       | pending   |
+      |   | job-3  | (unknown)        | unknown   |
+      |   | job-4  | LongClassNameJob | pending   |
     MSG
 
     assert_equal expected_message, error.message

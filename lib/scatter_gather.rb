@@ -159,20 +159,10 @@ module ScatterGather
     def format_dependency_table(dependency_statuses)
       return "No dependencies" if dependency_statuses.empty?
 
-      # Sort by status: unknown first, then pending, then completed
-      sorted_statuses = dependency_statuses.sort_by do |ds|
-        case ds.status
-        when :unknown then 0
-        when :pending then 1
-        when :completed then 2
-        else 3
-        end
-      end
-
       # Calculate column widths
-      max_id_width = sorted_statuses.map { |ds| ds.active_job_id.length }.max || 0
-      max_class_width = sorted_statuses.map { |ds| ds.display_class.length }.max || 0
-      max_status_width = sorted_statuses.map { |ds| ds.status.to_s.length }.max || 0
+      max_id_width = dependency_statuses.map { |ds| ds.active_job_id.length }.max || 0
+      max_class_width = dependency_statuses.map { |ds| ds.display_class.length }.max || 0
+      max_status_width = dependency_statuses.map { |ds| ds.status.to_s.length }.max || 0
 
       # Ensure minimum widths
       id_width = [max_id_width, 6].max # "Job ID".length = 6
@@ -187,8 +177,8 @@ module ScatterGather
       lines << header
       lines << "|---|#{"-" * (id_width + 2)}|#{"-" * (class_width + 2)}|#{"-" * (status_width + 2)}|"
 
-      # Rows
-      sorted_statuses.each do |ds|
+      # Rows (dependency_statuses are already sorted from collect_statuses)
+      dependency_statuses.each do |ds|
         row = "| %s | %-#{id_width}s | %-#{class_width}s | %-#{status_width}s |" % [
           ds.checkmark,
           ds.active_job_id,
