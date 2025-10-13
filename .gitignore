@@ -13,3 +13,5 @@
 Gemfile.lock
 *.sqlite3
 .yardoc
+*.gem
+
