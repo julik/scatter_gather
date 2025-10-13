@@ -177,4 +177,97 @@ class ScatterGatherTest < ActiveSupport::TestCase
       perform_enqueued_jobs
     end
   end
+
+  test "Completion.collect_statuses handles missing job IDs correctly" do
+    # Create some job IDs - some that exist in the database, some that don't
+    existing_job_id_1 = "existing-job-1"
+    existing_job_id_2 = "existing-job-2"
+    missing_job_id_1 = "missing-job-1"
+    missing_job_id_2 = "missing-job-2"
+
+    # Create completion records for some jobs
+    ScatterGather::Completion.create!(
+      active_job_id: existing_job_id_1,
+      active_job_class_name: "TestJob",
+      status: "completed"
+    )
+
+    ScatterGather::Completion.create!(
+      active_job_id: existing_job_id_2,
+      active_job_class_name: "TestJob",
+      status: "pending"
+    )
+
+    # Test with a mix of existing and missing job IDs
+    job_ids = [existing_job_id_1, existing_job_id_2, missing_job_id_1, missing_job_id_2]
+
+    # Call the method and capture the result
+    result = ScatterGather::Completion.collect_statuses(job_ids)
+
+    # Verify the results
+    existing_completed = result.find { |ds| ds.active_job_id == existing_job_id_1 }
+    existing_pending = result.find { |ds| ds.active_job_id == existing_job_id_2 }
+    missing_1 = result.find { |ds| ds.active_job_id == missing_job_id_1 }
+    missing_2 = result.find { |ds| ds.active_job_id == missing_job_id_2 }
+
+    assert_not_nil existing_completed, "Should find existing completed job"
+    assert_equal :completed, existing_completed.status, "Existing completed job should have :completed status"
+    assert_equal "TestJob", existing_completed.active_job_class, "Should have correct class name"
+    assert_equal "✓", existing_completed.checkmark, "Completed job should have checkmark"
+
+    assert_not_nil existing_pending, "Should find existing pending job"
+    assert_equal :pending, existing_pending.status, "Existing pending job should have :pending status"
+    assert_equal "TestJob", existing_pending.active_job_class, "Should have correct class name"
+    assert_equal " ", existing_pending.checkmark, "Pending job should have space"
+
+    assert_not_nil missing_1, "Should find missing job 1"
+    assert_equal :unknown, missing_1.status, "Missing job should have :unknown status"
+    assert_nil missing_1.active_job_class, "Missing job should have nil class name"
+    assert_equal "(unknown)", missing_1.display_class, "Should display (unknown) for missing class"
+    assert_equal " ", missing_1.checkmark, "Unknown job should have space"
+
+    assert_not_nil missing_2, "Should find missing job 2"
+    assert_equal :unknown, missing_2.status, "Missing job should have :unknown status"
+    assert_nil missing_2.active_job_class, "Missing job should have nil class name"
+    assert_equal "(unknown)", missing_2.display_class, "Should display (unknown) for missing class"
+    assert_equal " ", missing_2.checkmark, "Unknown job should have space"
+
+    # Verify all job IDs are present in the result
+    assert_equal job_ids.length, result.length, "Result should contain all job IDs"
+    result_job_ids = result.map(&:active_job_id)
+    job_ids.each do |job_id|
+      assert_includes result_job_ids, job_id, "Result should contain job ID: #{job_id}"
+    end
+  end
+
+  test "DependencyTimeoutError formats dependency table correctly" do
+    # Create some dependency statuses with mixed states
+    dependency_statuses = [
+      ScatterGather::DependencyStatus.new("job-1", "TestJob", :completed),
+      ScatterGather::DependencyStatus.new("job-2", "AnotherJob", :pending),
+      ScatterGather::DependencyStatus.new("job-3", nil, :unknown),
+      ScatterGather::DependencyStatus.new("job-4", "LongClassNameJob", :pending)
+    ]
+
+    # Create the exception
+    error = ScatterGather::DependencyTimeoutError.new(5, dependency_statuses)
+
+    # Verify the exception has the correct attributes
+    assert_equal 5, error.max_attempts
+    assert_equal dependency_statuses, error.dependency_statuses
+
+    # Test the exact table format
+    expected_message = <<~MSG
+      Gather failed after 5 attempts. Dependencies:
+
+      | ✓ | Job ID | Class            | Status    |
+      |---|--------|------------------|-----------|
+      |   | job-3  | (unknown)        | unknown   |
+      |   | job-2  | AnotherJob       | pending   |
+      |   | job-4  | LongClassNameJob | pending   |
+      | ✓ | job-1  | TestJob          | completed |
+    MSG
+
+    assert_equal expected_message, error.message
+  end
 end

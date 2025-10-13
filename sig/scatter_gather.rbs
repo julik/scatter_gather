@@ -34,10 +34,45 @@ module ScatterGather
   # Updates the completions table with the status of this job
   def register_completion_for_gathering: () -> untyped
 
+  # Struct to represent the status of a dependency job
+  # @param active_job_id [String] The ActiveJob ID
+  # @param active_job_class [String] The ActiveJob class name
+  # @param status [Symbol] The status of the job (:completed, :pending, :unknown)
+  class DependencyStatus < Struct
+    # Get a display-friendly class name for unknown jobs
+    # 
+    # _@return_ — The class name or "(unknown)" for unknown jobs
+    def display_class: () -> String
+
+    # Get a checkmark for completed jobs
+    # 
+    # _@return_ — "✓" for completed jobs, " " for others
+    def checkmark: () -> String
+
+    # Returns the value of attribute active_job_id
+    attr_accessor active_job_id: Object
+
+    # Returns the value of attribute active_job_class
+    attr_accessor active_job_class: Object
+
+    # Returns the value of attribute status
+    attr_accessor status: Object
+  end
+
   class Completion < ActiveRecord::Base
-    # sord omit - no YARD type given for "active_job_ids", using untyped
-    # sord omit - no YARD return type given, using untyped
-    def self.collect_statuses: (untyped active_job_ids) -> untyped
+    # Collect status information for the given active job IDs
+    # 
+    # _@param_ `active_job_ids` — Array of ActiveJob IDs to check
+    # 
+    # _@return_ — Array of DependencyStatus objects
+    def self.collect_statuses: (::Array[String] active_job_ids) -> ::Array[DependencyStatus]
+
+    # Check if all dependencies are completed
+    # 
+    # _@param_ `dependency_statuses` — Array of dependency statuses
+    # 
+    # _@return_ — true if all dependencies are completed
+    def self.all_dependencies_completed?: (::Array[DependencyStatus] dependency_statuses) -> bool
   end
 
   # Proxy class that mimics ActiveJob behavior for gather jobs
@@ -60,12 +95,23 @@ module ScatterGather
   # Custom exception for when gather job exhausts attempts
   class DependencyTimeoutError < StandardError
     # sord omit - no YARD type given for "max_attempts", using untyped
-    # sord omit - no YARD type given for "dependency_status", using untyped
-    def initialize: (untyped max_attempts, untyped dependency_status) -> void
+    # sord omit - no YARD type given for "dependency_statuses", using untyped
+    def initialize: (untyped max_attempts, untyped dependency_statuses) -> void
 
-    # sord omit - no YARD type given for :dependency_status, using untyped
-    # Returns the value of attribute dependency_status.
-    attr_reader dependency_status: untyped
+    # Format dependency statuses as a plaintext table
+    # 
+    # _@param_ `dependency_statuses` — Array of dependency statuses
+    # 
+    # _@return_ — Formatted table string
+    def format_dependency_table: (::Array[DependencyStatus] dependency_statuses) -> String
+
+    # sord omit - no YARD type given for :dependency_statuses, using untyped
+    # Returns the value of attribute dependency_statuses.
+    attr_reader dependency_statuses: untyped
+
+    # sord omit - no YARD type given for :max_attempts, using untyped
+    # Returns the value of attribute max_attempts.
+    attr_reader max_attempts: untyped
   end
 
   # Internal job class for polling and coordinating gather operations
@@ -87,9 +133,9 @@ module ScatterGather
                    remaining_attempts: untyped
                  ) -> untyped
 
-    # sord omit - no YARD type given for "hash", using untyped
+    # sord omit - no YARD type given for "dependency_statuses", using untyped
     # sord omit - no YARD return type given, using untyped
-    def tally_in_logger_format: (untyped hash) -> untyped
+    def tally_in_logger_format: (untyped dependency_statuses) -> untyped
 
     # sord omit - no YARD type given for "target_job", using untyped
     # sord omit - no YARD return type given, using untyped

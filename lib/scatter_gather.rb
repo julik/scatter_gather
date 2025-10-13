@@ -36,17 +36,72 @@ require_relative "scatter_gather/version"
 module ScatterGather
   extend ActiveSupport::Concern
 
+  # Struct to represent the status of a dependency job
+  # @param active_job_id [String] The ActiveJob ID
+  # @param active_job_class [String] The ActiveJob class name
+  # @param status [Symbol] The status of the job (:completed, :pending, :unknown)
+  DependencyStatus = Struct.new(:active_job_id, :active_job_class, :status) do
+    # Get a display-friendly class name for unknown jobs
+    # @return [String] The class name or "(unknown)" for unknown jobs
+    def display_class
+      active_job_class || "(unknown)"
+    end
+
+    # Get a checkmark for completed jobs
+    # @return [String] "✓" for completed jobs, " " for others
+    def checkmark
+      (status == :completed) ? "✓" : " "
+    end
+  end
+
   class Completion < ActiveRecord::Base
     self.table_name = "scatter_gather_completions"
 
+    # Collect status information for the given active job IDs
+    # @param active_job_ids [Array<String>] Array of ActiveJob IDs to check
+    # @return [Array<DependencyStatus>] Array of DependencyStatus objects
     def self.collect_statuses(active_job_ids)
-      statuses = active_job_ids.map { |it| [it, :unknown] }.to_h
-      statuses_from_completions = where(active_job_id: active_job_ids)
-        .pluck(:active_job_id, :status)
-        .map do |(id, st)|
-          [id, st.to_sym]
+      # Initialize all job IDs with unknown status
+      statuses = active_job_ids.map { |id| [id, :unknown] }.to_h
+
+      # Get statuses from completion records
+      completions = where(active_job_id: active_job_ids)
+        .pluck(:active_job_id, :active_job_class_name, :status)
+        .map do |(id, class_name, status)|
+          [id, {class_name: class_name, status: status.to_sym}]
         end.to_h
-      statuses.merge!(statuses_from_completions)
+
+      # Update statuses with completion data
+      completions.each do |id, data|
+        statuses[id] = data[:status]
+      end
+
+      # Create DependencyStatus objects
+      dependency_statuses = active_job_ids.map do |id|
+        completion_data = completions[id]
+        class_name = completion_data&.dig(:class_name)
+        status = statuses[id]
+
+        DependencyStatus.new(id, class_name, status)
+      end
+
+      # Sort by status first (unknown, pending, completed), then by active_job_id
+      dependency_statuses.sort_by do |ds|
+        status_order = case ds.status
+        when :unknown then 0
+        when :pending then 1
+        when :completed then 2
+        else 3
+        end
+        [status_order, ds.active_job_id.to_s]
+      end
+    end
+
+    # Check if all dependencies are completed
+    # @param dependency_statuses [Array<DependencyStatus>] Array of dependency statuses
+    # @return [Boolean] true if all dependencies are completed
+    def self.all_dependencies_completed?(dependency_statuses)
+      dependency_statuses.all? { |ds| ds.status == :completed }
     end
   end
 
@@ -84,15 +139,66 @@ module ScatterGather
 
   # Custom exception for when gather job exhausts attempts
   class DependencyTimeoutError < StandardError
-    attr_reader :dependency_status
+    attr_reader :dependency_statuses, :max_attempts
 
-    def initialize(max_attempts, dependency_status)
-      @dependency_status = dependency_status
+    def initialize(max_attempts, dependency_statuses)
+      @max_attempts = max_attempts
+      @dependency_statuses = dependency_statuses
       super(<<~MSG)
         Gather failed after #{max_attempts} attempts. Dependencies:
         
-        #{JSON.pretty_generate(dependency_status)}
+        #{format_dependency_table(dependency_statuses)}
       MSG
+    end
+
+    private
+
+    # Format dependency statuses as a plaintext table
+    # @param dependency_statuses [Array<DependencyStatus>] Array of dependency statuses
+    # @return [String] Formatted table string
+    def format_dependency_table(dependency_statuses)
+      return "No dependencies" if dependency_statuses.empty?
+
+      # Sort by status: unknown first, then pending, then completed
+      sorted_statuses = dependency_statuses.sort_by do |ds|
+        case ds.status
+        when :unknown then 0
+        when :pending then 1
+        when :completed then 2
+        else 3
+        end
+      end
+
+      # Calculate column widths
+      max_id_width = sorted_statuses.map { |ds| ds.active_job_id.length }.max || 0
+      max_class_width = sorted_statuses.map { |ds| ds.display_class.length }.max || 0
+      max_status_width = sorted_statuses.map { |ds| ds.status.to_s.length }.max || 0
+
+      # Ensure minimum widths
+      id_width = [max_id_width, 6].max # "Job ID".length = 6
+      class_width = [max_class_width, 5].max # "Class".length = 5
+      status_width = [max_status_width, 5].max # "Status".length = 5
+
+      # Build table
+      lines = []
+
+      # Header
+      header = "| ✓ | %-#{id_width}s | %-#{class_width}s | %-#{status_width}s |" % ["Job ID", "Class", "Status"]
+      lines << header
+      lines << "|---|#{"-" * (id_width + 2)}|#{"-" * (class_width + 2)}|#{"-" * (status_width + 2)}|"
+
+      # Rows
+      sorted_statuses.each do |ds|
+        row = "| %s | %-#{id_width}s | %-#{class_width}s | %-#{status_width}s |" % [
+          ds.checkmark,
+          ds.active_job_id,
+          ds.display_class,
+          ds.status.to_s
+        ]
+        lines << row
+      end
+
+      lines.join("\n")
     end
   end
 
@@ -104,17 +210,16 @@ module ScatterGather
     def logger = ActiveSupport::TaggedLogging.new(super).tagged("ScatterGather")
 
     def perform(wait_for_active_job_ids:, target_job:, gather_config:, remaining_attempts:)
-      deps = ScatterGather::Completion.collect_statuses(wait_for_active_job_ids)
-      logger.info { "Gathered completions #{tally_in_logger_format(deps)}" }
+      dependency_statuses = ScatterGather::Completion.collect_statuses(wait_for_active_job_ids)
+      logger.info { "Gathered completions #{tally_in_logger_format(dependency_statuses)}" }
 
-      all_done = deps.values.all? { |it| it == :completed }
-      if all_done
+      if ScatterGather::Completion.all_dependencies_completed?(dependency_statuses)
         logger.info { "Dependencies done, enqueueing #{target_job.fetch(:cn)}" }
         perform_target_later_from_args(target_job)
         Completion.where(active_job_id: wait_for_active_job_ids).delete_all
       elsif remaining_attempts < 1
         max_attempts = gather_config.fetch(:max_attempts)
-        error = DependencyTimeoutError.new(max_attempts, deps)
+        error = DependencyTimeoutError.new(max_attempts, dependency_statuses)
         logger.warn { "Failed to gather dependencies after #{max_attempts} attempts" }
         Completion.where(active_job_id: wait_for_active_job_ids).delete_all
 
@@ -138,9 +243,9 @@ module ScatterGather
 
     private
 
-    def tally_in_logger_format(hash)
-      hash.values.tally.map do |k, count|
-        "#{k}=#{count}"
+    def tally_in_logger_format(dependency_statuses)
+      dependency_statuses.map(&:status).tally.map do |status, count|
+        "#{status}=#{count}"
       end.join(" ")
     end
 
