@@ -2,6 +2,11 @@
 
 A Ruby gem that provides a scatter-gather pattern for coordinating ActiveJob execution. Jobs can wait for other jobs to complete before executing, with configurable polling, retry, and timeout behavior.
 
+> [!TIP]
+> This gem was created for [Cora,](https://cora.computer/) 
+> your personal e-mail assistant. 
+> Send them some love for allowing me to share it.
+
 ## Usage
 
 Start some scatter jobs and create a gather job that waits for all dependencies to complete:
