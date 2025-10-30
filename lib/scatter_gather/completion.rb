@@ -8,6 +8,42 @@
 class ScatterGather::Completion < ActiveRecord::Base
   self.table_name = "scatter_gather_completions"
 
+  # Bulk insert completion rows if they do not already exist, without
+  # overwriting existing rows on conflict.
+  #
+  # @param rows [Array<Hash>] array of attribute hashes with keys:
+  #   :active_job_id, :active_job_class_name, :status, :created_at, :updated_at
+  # @return [void]
+  def self.insert_if_missing(rows)
+    return if rows.empty?
+
+    connection = ActiveRecord::Base.connection
+    table = connection.quote_table_name(table_name)
+    columns = %w[active_job_id active_job_class_name status created_at updated_at]
+    quoted_columns = columns.map { |c| connection.quote_column_name(c) }.join(", ")
+
+    values_sql = rows.map do |attrs|
+      [
+        connection.quote(attrs[:active_job_id]),
+        connection.quote(attrs[:active_job_class_name]),
+        connection.quote(attrs[:status]),
+        connection.quote(attrs[:created_at]),
+        connection.quote(attrs[:updated_at])
+      ].join(", ")
+    end.map { |vals| "(#{vals})" }.join(", ")
+
+    # Use conflict target by column name to be portable across adapters
+    conflict_target = connection.quote_column_name("active_job_id")
+
+    sql = <<~SQL
+      INSERT INTO #{table} (#{quoted_columns})
+      VALUES #{values_sql}
+      ON CONFLICT (#{conflict_target}) DO NOTHING
+    SQL
+
+    connection.execute(sql)
+  end
+
   # Collect status information for the given active job IDs
   # @param active_job_ids [Array<String>] Array of ActiveJob IDs to check
   # @return [Array<DependencyStatus>] Array of DependencyStatus objects
