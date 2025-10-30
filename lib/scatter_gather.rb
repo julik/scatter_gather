@@ -68,7 +68,14 @@ module ScatterGather
           updated_at: t
         }
       end
-      ScatterGather::Completion.insert_all(attrs, returning: false)
+      # Insert dependency rows if missing, but never overwrite an existing row
+      # (e.g., avoid downgrading a previously completed job back to pending).
+      # Use the unique constraint on active_job_id to skip duplicates.
+      ScatterGather::Completion.insert_all(
+        attrs,
+        unique_by: [:active_job_id],
+        returning: false
+      )
       ScatterGather::Completion.where("created_at < ?", 1.week.ago).delete_all
 
       # Return a proxy object that behaves like an ActiveJob proxy
